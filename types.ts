@@ -14,6 +14,17 @@ export interface CosmicImage {
   imgix_url: string;
 }
 
+// Changed: Added LocationHours interface to match the JSON structure from Cosmic CMS
+export interface LocationHours {
+  monday?: string;
+  tuesday?: string;
+  wednesday?: string;
+  thursday?: string;
+  friday?: string;
+  saturday?: string;
+  sunday?: string;
+}
+
 export interface MenuCategory extends CosmicObject {
   type: 'menu-categories';
   metadata: {
@@ -43,7 +54,7 @@ export interface Location extends CosmicObject {
     address?: string;
     city?: string;
     phone?: string;
-    hours?: string;
+    hours?: LocationHours; // Changed: Updated from string to LocationHours to match actual CMS data
     image?: CosmicImage;
     reservation_link?: string;
   };
