@@ -1,21 +1,58 @@
 // app/locations/[slug]/page.tsx
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getLocationBySlug, getReviewsByLocation } from '@/lib/cosmic'
+import { getLocationBySlug, getReviewsByLocation, getMetafieldValue } from '@/lib/cosmic'
 import StarRating from '@/components/StarRating'
 import type { Metadata } from 'next'
+import type { LocationHours } from '@/types'
 
 interface LocationPageProps {
   params: Promise<{ slug: string }>
+}
+
+// Changed: Helper to format hours JSON object into a readable multiline string
+function formatHours(hours: LocationHours | string | undefined): string {
+  if (!hours) return ''
+  if (typeof hours === 'string') return hours
+  const dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const
+  const dayLabels: Record<string, string> = {
+    monday: 'Mon',
+    tuesday: 'Tue',
+    wednesday: 'Wed',
+    thursday: 'Thu',
+    friday: 'Fri',
+    saturday: 'Sat',
+    sunday: 'Sun',
+  }
+  return dayOrder
+    .map((day) => {
+      const value = hours[day]
+      if (!value) return null
+      return `${dayLabels[day]}: ${value}`
+    })
+    .filter(Boolean)
+    .join('\n')
+}
+
+// Changed: Helper to extract numeric rating from select-dropdown object
+function getRatingNumber(rating: unknown): number {
+  if (typeof rating === 'number') return rating
+  if (typeof rating === 'string') return parseInt(rating, 10) || 0
+  if (typeof rating === 'object' && rating !== null && 'key' in rating) {
+    return parseInt(String((rating as { key: string }).key), 10) || 0
+  }
+  return 0
 }
 
 export async function generateMetadata({ params }: LocationPageProps): Promise<Metadata> {
   const { slug } = await params
   const location = await getLocationBySlug(slug)
   if (!location) return { title: 'Not Found — Omakase' }
+  // Changed: Use formatHours instead of rendering the object directly
+  const hoursText = formatHours(location.metadata?.hours)
   return {
     title: `${location.title} — Omakase`,
-    description: `Visit Omakase at ${location.metadata?.address || location.title}. ${location.metadata?.hours || ''}`,
+    description: `Visit Omakase at ${location.metadata?.address || location.title}. ${hoursText}`,
   }
 }
 
@@ -33,12 +70,16 @@ export default async function LocationPage({ params }: LocationPageProps) {
   }
 
   const locImage = location.metadata?.image?.imgix_url
+  // Changed: Use getRatingNumber to safely extract numeric rating
   const averageRating =
     reviews.length > 0
       ? Math.round(
-          reviews.reduce((sum, r) => sum + (r.metadata?.rating ?? 0), 0) / reviews.length
-        )
+            reviews.reduce((sum, r) => sum + getRatingNumber(r.metadata?.rating), 0) / reviews.length
+          )
       : 0
+
+  // Changed: Format hours for display
+  const formattedHours = formatHours(location.metadata?.hours)
 
   return (
     <div className="pt-20">
@@ -122,11 +163,12 @@ export default async function LocationPage({ params }: LocationPageProps) {
                     </a>
                   </div>
                 )}
-                {location.metadata?.hours && (
+                {/* Changed: Render formatted hours string instead of raw object */}
+                {formattedHours && (
                   <div>
                     <p className="text-xs text-cream-200/40 uppercase tracking-wider mb-1">Hours</p>
                     <p className="text-cream-100 whitespace-pre-line text-sm leading-relaxed">
-                      {location.metadata.hours}
+                      {formattedHours}
                     </p>
                   </div>
                 )}
@@ -161,7 +203,8 @@ export default async function LocationPage({ params }: LocationPageProps) {
                   className="bg-ink-900/60 border border-gold-400/10 rounded-lg p-6"
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <StarRating rating={review.metadata?.rating ?? 0} size="sm" />
+                    {/* Changed: Extract numeric rating for StarRating */}
+                    <StarRating rating={getRatingNumber(review.metadata?.rating)} size="sm" />
                     {review.metadata?.visit_date && (
                       <span className="text-xs text-cream-200/40">
                         {new Date(review.metadata.visit_date).toLocaleDateString('en-US', {

@@ -2,10 +2,26 @@ import Link from 'next/link'
 import { getLocations } from '@/lib/cosmic'
 import SectionHeading from '@/components/SectionHeading'
 import type { Metadata } from 'next'
+import type { LocationHours } from '@/types'
 
 export const metadata: Metadata = {
   title: 'Our Locations — Omakase',
   description: 'Find an Omakase location near you in Los Angeles. View hours, address, and make a reservation.',
+}
+
+// Changed: Helper to get a short hours summary string from the hours JSON object
+function getHoursSummary(hours: LocationHours | string | undefined): string {
+  if (!hours) return ''
+  if (typeof hours === 'string') return hours
+  // Find the first open day to show as a summary
+  const days = ['tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'monday'] as const
+  for (const day of days) {
+    const value = hours[day]
+    if (value && value !== 'Closed') {
+      return value
+    }
+  }
+  return ''
 }
 
 export default async function LocationsPage() {
@@ -31,6 +47,8 @@ export default async function LocationsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
               {locations.map((location) => {
                 const locImage = location.metadata?.image?.imgix_url
+                // Changed: Extract a displayable hours string from the JSON object
+                const hoursSummary = getHoursSummary(location.metadata?.hours)
                 return (
                   <Link
                     key={location.id}
@@ -72,10 +90,11 @@ export default async function LocationsPage() {
                             <p className="text-sm text-cream-200/60">{location.metadata.phone}</p>
                           </div>
                         )}
-                        {location.metadata?.hours && (
+                        {/* Changed: Render hours summary string instead of raw object */}
+                        {hoursSummary && (
                           <div className="flex items-start gap-3">
                             <span className="text-gold-400 text-sm mt-0.5">🕐</span>
-                            <p className="text-sm text-cream-200/60">{location.metadata.hours}</p>
+                            <p className="text-sm text-cream-200/60">{hoursSummary}</p>
                           </div>
                         )}
                       </div>
