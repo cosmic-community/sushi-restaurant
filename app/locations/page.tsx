@@ -13,6 +13,7 @@ export const metadata: Metadata = {
 function getHoursSummary(hours: LocationHours | string | undefined): string {
   if (!hours) return ''
   if (typeof hours === 'string') return hours
+  if (typeof hours !== 'object') return ''
   // Find the first open day to show as a summary
   const days = ['tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'monday'] as const
   for (const day of days) {
@@ -20,6 +21,17 @@ function getHoursSummary(hours: LocationHours | string | undefined): string {
     if (value && value !== 'Closed') {
       return value
     }
+  }
+  return ''
+}
+
+// Changed: Helper to safely convert any value to a renderable string
+function safeString(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (typeof value === 'object' && 'value' in value) {
+    return String((value as { value: unknown }).value)
   }
   return ''
 }
@@ -49,6 +61,10 @@ export default async function LocationsPage() {
                 const locImage = location.metadata?.image?.imgix_url
                 // Changed: Extract a displayable hours string from the JSON object
                 const hoursSummary = getHoursSummary(location.metadata?.hours)
+                // Changed: Safely extract string values to prevent object-as-React-child errors
+                const addressText = safeString(location.metadata?.address)
+                const cityText = safeString(location.metadata?.city)
+                const phoneText = safeString(location.metadata?.phone)
                 return (
                   <Link
                     key={location.id}
@@ -75,19 +91,19 @@ export default async function LocationsPage() {
                         {location.title}
                       </h2>
                       <div className="mt-4 space-y-2">
-                        {location.metadata?.address && (
+                        {addressText && (
                           <div className="flex items-start gap-3">
                             <span className="text-gold-400 text-sm mt-0.5">📍</span>
                             <p className="text-sm text-cream-200/60">
-                              {location.metadata.address}
-                              {location.metadata?.city && `, ${location.metadata.city}`}
+                              {addressText}
+                              {cityText && `, ${cityText}`}
                             </p>
                           </div>
                         )}
-                        {location.metadata?.phone && (
+                        {phoneText && (
                           <div className="flex items-center gap-3">
                             <span className="text-gold-400 text-sm">📞</span>
-                            <p className="text-sm text-cream-200/60">{location.metadata.phone}</p>
+                            <p className="text-sm text-cream-200/60">{phoneText}</p>
                           </div>
                         )}
                         {/* Changed: Render hours summary string instead of raw object */}

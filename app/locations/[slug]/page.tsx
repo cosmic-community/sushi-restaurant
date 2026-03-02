@@ -10,10 +10,11 @@ interface LocationPageProps {
   params: Promise<{ slug: string }>
 }
 
-// Changed: Helper to format hours JSON object into a readable multiline string
+// Changed: Helper to format hours JSON object into readable lines for display
 function formatHours(hours: LocationHours | string | undefined): string {
   if (!hours) return ''
   if (typeof hours === 'string') return hours
+  if (typeof hours !== 'object') return ''
   const dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const
   const dayLabels: Record<string, string> = {
     monday: 'Mon',
@@ -44,6 +45,17 @@ function getRatingNumber(rating: unknown): number {
   return 0
 }
 
+// Changed: Helper to safely convert any value to a renderable string
+function safeString(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (typeof value === 'object' && 'value' in value) {
+    return String((value as { value: unknown }).value)
+  }
+  return ''
+}
+
 export async function generateMetadata({ params }: LocationPageProps): Promise<Metadata> {
   const { slug } = await params
   const location = await getLocationBySlug(slug)
@@ -52,7 +64,7 @@ export async function generateMetadata({ params }: LocationPageProps): Promise<M
   const hoursText = formatHours(location.metadata?.hours)
   return {
     title: `${location.title} — Omakase`,
-    description: `Visit Omakase at ${location.metadata?.address || location.title}. ${hoursText}`,
+    description: `Visit Omakase at ${safeString(location.metadata?.address) || location.title}. ${hoursText}`,
   }
 }
 
@@ -78,8 +90,13 @@ export default async function LocationPage({ params }: LocationPageProps) {
           )
       : 0
 
-  // Changed: Format hours for display
+  // Changed: Format hours for display - guaranteed string output
   const formattedHours = formatHours(location.metadata?.hours)
+  // Changed: Safely extract string values for all metadata fields
+  const addressText = safeString(location.metadata?.address)
+  const cityText = safeString(location.metadata?.city)
+  const phoneText = safeString(location.metadata?.phone)
+  const contentText = safeString(location.content)
 
   return (
     <div className="pt-20">
@@ -130,9 +147,9 @@ export default async function LocationPage({ params }: LocationPageProps) {
                 </div>
               )}
 
-              {location.content && (
+              {contentText && (
                 <div className="mt-8 text-cream-200/70 leading-relaxed text-lg">
-                  {location.content}
+                  {contentText}
                 </div>
               )}
             </div>
@@ -143,23 +160,23 @@ export default async function LocationPage({ params }: LocationPageProps) {
                 Details
               </h3>
               <div className="space-y-5">
-                {location.metadata?.address && (
+                {addressText && (
                   <div>
                     <p className="text-xs text-cream-200/40 uppercase tracking-wider mb-1">Address</p>
-                    <p className="text-cream-100">{location.metadata.address}</p>
-                    {location.metadata?.city && (
-                      <p className="text-cream-200/60 text-sm">{location.metadata.city}</p>
+                    <p className="text-cream-100">{addressText}</p>
+                    {cityText && (
+                      <p className="text-cream-200/60 text-sm">{cityText}</p>
                     )}
                   </div>
                 )}
-                {location.metadata?.phone && (
+                {phoneText && (
                   <div>
                     <p className="text-xs text-cream-200/40 uppercase tracking-wider mb-1">Phone</p>
                     <a
-                      href={`tel:${location.metadata.phone}`}
+                      href={`tel:${phoneText}`}
                       className="text-cream-100 hover:text-gold-300 transition-colors"
                     >
-                      {location.metadata.phone}
+                      {phoneText}
                     </a>
                   </div>
                 )}
@@ -221,7 +238,7 @@ export default async function LocationPage({ params }: LocationPageProps) {
                     </p>
                   )}
                   <p className="mt-3 text-sm font-semibold text-cream-100">
-                    — {review.metadata?.reviewer_name || 'Anonymous Guest'}
+                    — {safeString(review.metadata?.reviewer_name) || 'Anonymous Guest'}
                   </p>
                 </div>
               ))}
